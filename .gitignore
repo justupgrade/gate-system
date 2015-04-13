@@ -2,3 +2,8 @@
 .buildpath
 .settings/
 .project
+tests/
+composer.lock
+composer.phar
+vendor/
+phpunit.xml

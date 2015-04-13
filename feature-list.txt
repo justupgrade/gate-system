@@ -1,0 +1,22 @@
+- generate gate-system:
+	+ 4 gates (left,right,top,bottom)
+	+ center
+	+ rooms connecting gates and center
+	+ other rooms
+	+ secret rooms?
+	
+- generate room:
+	+ weight: closer to the center -> bigger it gets
+	+ difficulty: closer to the exit -> more difficult
+	+ maze:
+		-> start : top? bottom? left? right?
+		-> exit1 (exit2, exit3) : top? bottom? left? right?
+		
+-------------
+GATE SYSTEM:
+System(width,height)
+	A. Put all gates
+	B. Find center
+	C. Connect gates with center
+	D. Add other rooms
+	E. Open connections (doors) between rooms
