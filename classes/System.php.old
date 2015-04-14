@@ -1,0 +1,225 @@
+<?php
+/*
+-width,height
+-grid[COL][ROW]
+
+-generate():System
+-save():Boolean
+-load():System
+
+-getRoom(col,row):Room
+-getNeighbors(room):Array
+
+ */
+define('SMALL_WIDTH', 7);
+define('SMALL_HEIGHT', 7);
+define('CONNECTION_CREATION_CHANCE', 25); //101 - test purposes -> 100% chance to create connection
+
+	class System {
+		static private $instance = null;
+		private $width;
+		private $height;
+		
+		private $rooms;
+		private $gates;
+		private $center;
+		
+		private function __construct($width,$height){
+			$this->width = $width;
+			$this->height = $height;
+		}
+		
+		static public function generate($cols=SMALL_WIDTH,$rows=SMALL_HEIGHT) {
+			$system = new System($cols,$rows);
+			
+			$system->gates = self::generateGates($cols-1,$rows-1);
+			$system->center = self::calculateCenter($cols,$rows);
+			$system->rooms = self::generateRooms($system->gates,$system->center,$cols,$rows);
+			
+			return $system;
+		}
+		
+		static private function generateRooms($gates,$center,$cols,$rows){
+			$array = array();
+			//init rooms => copy gates to rooms for initial iteration 
+			$rooms = $gates;
+			//break loop condition:
+			$gates_connected = false;
+			$count = 0;
+			while($count < 3) {
+				$new_rooms = array();
+				
+				foreach($rooms as $roomID => $room) {
+					$possibleConnections = self::getPossibleConnectionsForRoom($room,$cols,$rows);
+					//at least one connection has to be established (if center not found already)
+					$innerCount = 0;
+					while(true || ++$innerCount < 10) {
+					
+						$connections = self::findConnections($room,$possibleConnections);
+						foreach($connections as $connectionID => $connection) {
+							//connection is current room connection? -> unset
+							foreach($room['connections'] as $actual_connection) {
+								if($actual_connection['col'] === $connection['col'] && $actual_connection['row'] === $connection['row']) {
+									unset($connections[$connectionID]);
+									break;
+								}
+							}
+							
+							if(($existingRoomID = self::roomAlreadyExists($array,$connection)) >= 0) {
+								unset($connections[$connectionID]);	
+							} elseif(self::roomAlreadyExists($rooms,$connection) >= 0) {
+								unset($connections[$connectionID]);
+							}
+							
+						}
+						
+						if(count($connections = array_values($connections)) == 1) 
+							break;
+					}
+					//add room or connection to rooms...
+					foreach($connections as $newRoom){
+						//new room exists? => add connection with $room
+						if(($existingRoomID = self::roomAlreadyExists($array,$newRoom)) >= 0) {
+							//update connection to that room
+							
+							
+						} else {
+							if($newRoom['col']===$center['col'] && $newRoom['row']===$center['row']){
+								//newRoom is center, so room reached center
+								$room['connected'] = true;
+								//update link to the center recursively:
+								self::createConnections($room['connections']);
+							}
+							else {//add new room to the system
+								$newRoom['connections'][] = $room;
+								$new_rooms[] = $newRoom;
+							}
+						}
+					}
+				}
+				
+				$count++;
+					
+				//add new rooms to rooms and repeat generation
+				$array = array_merge($array, $rooms);
+				$rooms = $new_rooms;
+				
+				$gates_connected = true;
+				for($i = 0; $i < 4; $i++) {
+					if($gates[$i]['connected']) continue;
+					
+					$gates_connected = false;
+					break;
+				}
+			}//END OF WHILE LOOP
+			return $array;
+		}
+		
+		static private function createConnections(& $rooms) {
+			foreach($rooms as $room) {
+				$room['connected'] = true;
+				
+				if(count($room['connections']) > 0) self::createConnections($room['connections']);
+			}
+			
+			
+		}
+		
+		//room exists -> return roomIDX
+		//room doesnt exits -> rerturn -1
+		static private function roomAlreadyExists($rooms,$newRoom){
+			foreach($rooms as $roomID => $room) {
+				if($room['col']===$newRoom['col'] && $room['row']===$newRoom['row']) return $roomID;
+			}
+			
+			return -1;
+		}
+		
+		static public function findConnections($room,$possibleConnections) {
+			$rooms = array();
+			
+			foreach($possibleConnections as $connection => $possible) {
+				if(!$possible) continue;
+				//try to create connection
+				if(rand(1,100) > CONNECTION_CREATION_CHANCE) continue;
+				//create connection / room:
+				$newRoom = array(
+						'col'=> self::getNewCol($room['col'], $connection),
+						'row'=> self::getNewRow($room['row'], $connection),
+						'connected'=>false, 
+						'connections'=>array()
+				);
+				$rooms[] = $newRoom;
+			}
+			
+			//return exactly one
+			return $rooms;
+		}
+		
+		static private function getNewCol($col, $trans){
+			return $trans === 'left' ? $col-1 : ($trans === 'right' ? $col+1 : $col);
+		}
+		
+		static private function getNewRow($row, $trans){
+			return $trans === 'top' ? $row-1 : ($trans === 'bottom' ? $row+1 : $row);
+		}
+		
+		static public function getPossibleConnectionsForRoom($room,$width,$height){
+			$connections = array('left'=>true, 'right'=>true, 'top'=>true, 'bottom'=>true);
+			if($room['col'] === 0) 			$connections['left'] = false;
+			if($room['col'] === $width-1)	$connections['right'] = false;
+			if($room['row'] === 0) 			$connections['top'] = false;
+			if($room['row'] === $height-1) 	$connections['bottom'] = false;
+			
+			return $connections;
+		}
+		
+		static public function calculateCenter($cols,$rows){
+			return array('col'=>intval(round($cols/2,0,PHP_ROUND_HALF_DOWN)), 'row'=>intval(round($rows/2,0,PHP_ROUND_HALF_DOWN)));
+		}
+		
+		//requires MAX COL INDEX && MAX ROW INDEX
+		//generate 4 gates in random location (first col, first row, last col, last row)
+		static public function generateGates($maxCol,$maxRow) {
+			//left, top, right, bottom
+			$left 	= array('col'=>0, 					'row'=>rand(2,$maxRow-2),	'connected'=>false, 'connections'=>array());
+			$top 	= array('col'=>rand(2,$maxCol-2), 	'row'=>0,					'connected'=>false, 'connections'=>array());
+			$right 	= array('col'=>$maxCol,		 		'row'=>rand(2,$maxRow-2),	'connected'=>false, 'connections'=>array());
+			$bottom = array('col'=>rand(2,$maxCol-2),	'row'=>$maxRow,				'connected'=>false, 'connections'=>array());
+			
+			return array($left, $top, $right, $bottom);
+		}
+		
+		/*public function setGates($gates) {
+			$this->gates = $gates;
+		}
+		
+		public function setCenter($center) {
+			$this->center = $center;
+		}
+		
+		public function setRooms($rooms) {
+			$this->rooms = $rooms;
+		}*/
+		
+		public function getWidth() {
+			return $this->width;
+		}
+		
+		public function getHeight() {
+			return $this->height;
+		}
+		
+		public function getRooms() {
+			return $this->rooms;
+		}
+		
+		public function getCenter() {
+			return $this->center;
+		}
+		
+		public function getGates() {
+			return $this->gates;
+		}
+	}
+?>

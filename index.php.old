@@ -1,0 +1,70 @@
+<?php
+	function __autoload($name){
+		require_once './classes/' . $name . '.php';
+	}
+
+	$system = System::generate();
+	$rooms = $system->getRooms();
+	$gates = $system->getGates();
+	$center = $system->getCenter();
+	
+	$rooms_html = '';
+	$connections_html = '';
+	
+	foreach($rooms as $room) {
+		//draw room
+		$col = $room['col']; $row = $room['row'];
+		$left = 50 + $col * 30; $top = 50 + $row * 30;
+		$rooms_html .= "<div class='room' style='left: $left; top: $top;'></div>";
+		//draw connection
+		
+		//echo "num of conenctions: " . count($room['connections']) . "<br>";
+
+		foreach($room['connections'] as $connection) {
+			if($connection['row'] == $room['row']) { //horiz connection //-1 (connection is above) or +1 (connection is below)
+				$diff = $connection['col'] - $room['col']; 
+				$top += 10;
+				if($diff == 1) $left += 12.5; //room.width/2
+				else{
+					$left -= 17.5; // -(offset+room.width/2);
+				}
+				$connections_html .= "<div class='connection horiz' ";
+			} else { //horizontal connection
+				$diff = $connection['row'] - $room['row'];  //-1 (connection is to the left) or +1 (connection is on right side)
+				$left += 10;
+				if($diff == 1) $top += 12.5; //room.height/2
+				else{
+					$top -= 17.5; // -(offset+room.height/2);
+				}
+				$connections_html .= "<div class='connection vert' ";
+			}
+			
+			$connections_html .= "style='left:$left; top:$top;'></div>";
+		}
+	}
+	
+	$gates_html = '';
+	
+	foreach($gates as $room){
+		$col = $room['col']; $row = $room['row'];
+		$left = 50 + $col * 30; $top = 50 + $row * 30;
+		$gates_html .= "<div class='room gate' style='left: $left; top: $top;'></div>";
+	}
+	
+	$left = $center['col'] * 30 + 50; $top = $center['row'] * 30 + 50;
+	$center_html = "<div class='room center' style='left: $left; top: $top;'></div>";
+?>
+<html>
+<head>
+	<title> Gate-System </title>
+	<style> @import url('./styles/main.css');</style>
+</head>
+<body>
+	<?php 
+		echo $rooms_html; 
+		echo $gates_html;
+		echo $center_html;
+		echo $connections_html;
+	?>
+</body>
+</html>
